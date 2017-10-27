@@ -1,0 +1,38 @@
+{
+  "name": "hapi-ab",
+  "version": "0.0.1",
+  "description": "hapi plugin to handle server side ab tests",
+  "main": "index.js",
+  "scripts": {
+    "test": "tap test",
+    "example": "node example/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/firstandthird/hapi-ab.git"
+  },
+  "keywords": [
+    "hapi",
+    "abtest"
+  ],
+  "author": "Greg Allen <code@firstandthird.com> (http://firstandthird.com/)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/firstandthird/hapi-ab/issues"
+  },
+  "homepage": "https://github.com/firstandthird/hapi-ab#readme",
+  "devDependencies": {
+    "eslint": "^4.9.0",
+    "eslint-config-firstandthird": "^4.0.1",
+    "eslint-plugin-import": "^2.8.0",
+    "hapi": "^16.6.2",
+    "tap": "^10.7.2"
+  },
+  "eslintConfig": {
+    "extends": "firstandthird"
+  },
+  "dependencies": {
+    "joi": "^13.0.1",
+    "uuid": "^3.1.0"
+  }
+}
