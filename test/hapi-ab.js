@@ -118,6 +118,54 @@ tap.test('keeps the same values on subsequet requests', t => {
   });
 });
 
+tap.test('set test with query param', t => {
+  const server = new Hapi.Server();
+  server.connection({
+    state: {
+      isSecure: false,
+      isHttpOnly: false,
+      isSameSite: false
+    }
+  });
+
+  server.route({
+    path: '/',
+    method: 'get',
+    config: {
+      plugins: {
+        'hapi-ab': {
+          tests: ['buttonColor']
+        }
+      }
+    },
+    handler(request, reply) {
+      reply(null, request.abTests);
+    }
+  });
+
+  server.register({
+    register: plugin,
+    options: {
+      tests: {
+        buttonColor: ['green', 'blue', 'yellow', 'orange']
+      }
+    }
+  }, (pluginErr) => {
+    t.equal(pluginErr, undefined);
+    server.start((serverErr) => {
+      t.equal(serverErr, undefined);
+      server.inject({
+        url: '/?abtest=blue'
+      }, (res) => {
+        server.stop(() => {
+          const payload = JSON.parse(res.payload);
+          t.equal(payload.tests.buttonColor, 'blue');
+          t.end();
+        });
+      });
+    });
+  });
+});
 tap.test('error if not valid test');
 
 tap.test('set session id in cookie');

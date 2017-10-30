@@ -51,7 +51,12 @@ exports.register = function(server, options, next) {
       let testValue = request.state[cookieKey];
       if (!testValue) {
         //not already part of test
-        testValue = diceRoll(config.tests[t]);
+        //force value via query - mainly for testing
+        if (request.query.abtest) {
+          testValue = request.query.abtest;
+        } else {
+          testValue = diceRoll(config.tests[t]);
+        }
         reply.state(cookieKey, testValue, { ttl: config.cookieTTL });
       }
       abTests.tests[t] = testValue;
