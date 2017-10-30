@@ -134,7 +134,7 @@ tap.test('set test with query param', t => {
     config: {
       plugins: {
         'hapi-ab': {
-          tests: ['buttonColor']
+          tests: ['text', 'buttonColor']
         }
       }
     },
@@ -147,7 +147,9 @@ tap.test('set test with query param', t => {
     register: plugin,
     options: {
       tests: {
-        buttonColor: ['green', 'blue', 'yellow', 'orange']
+        text: ['a', 'b'],
+        buttonColor: ['green', 'blue', 'yellow', 'orange'],
+        placement: ['top', 'bottom']
       }
     }
   }, (pluginErr) => {
@@ -155,11 +157,12 @@ tap.test('set test with query param', t => {
     server.start((serverErr) => {
       t.equal(serverErr, undefined);
       server.inject({
-        url: '/?abtest=blue'
+        url: '/?abtest=buttonColor:blue,text:b'
       }, (res) => {
         server.stop(() => {
           const payload = JSON.parse(res.payload);
           t.equal(payload.tests.buttonColor, 'blue');
+          t.equal(payload.tests.text, 'b');
           t.end();
         });
       });

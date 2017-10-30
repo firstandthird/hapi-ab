@@ -42,6 +42,14 @@ exports.register = function(server, options, next) {
     }
 
     const invalidTests = [];
+    const overrides = {};
+    if (request.query.abtest) {
+      const ots = request.query.abtest.split(',');
+      ots.forEach(o => {
+        const [key, value] = o.split(':');
+        overrides[key] = value;
+      });
+    }
     routeTests.forEach(t => {
       const testOptions = config.tests[t];
       if (!testOptions) {
@@ -49,14 +57,12 @@ exports.register = function(server, options, next) {
       }
       const cookieKey = `${config.testCookieNamePrefix}${t}`;
       let testValue = request.state[cookieKey];
+      if (overrides[t]) {
+        testValue = overrides[t];
+      }
       if (!testValue) {
         //not already part of test
-        //force value via query - mainly for testing
-        if (request.query.abtest) {
-          testValue = request.query.abtest;
-        } else {
-          testValue = diceRoll(config.tests[t]);
-        }
+        testValue = diceRoll(config.tests[t]);
         reply.state(cookieKey, testValue, { ttl: config.cookieTTL });
       }
       abTests.tests[t] = testValue;
