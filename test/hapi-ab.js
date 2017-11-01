@@ -182,3 +182,108 @@ tap.test('set test on request object');
 tap.test('randomize test value');
 
 tap.test('globalTests');
+
+tap.test('if funnels, dont include if not already there', t => {
+  const server = new Hapi.Server();
+  server.connection({
+    state: {
+      isSecure: false,
+      isHttpOnly: false,
+      isSameSite: false
+    }
+  });
+
+  server.route({
+    path: '/',
+    method: 'get',
+    config: {
+      plugins: {
+        'hapi-ab': {
+          tests: ['text'],
+          funnels: ['buttonColor']
+        }
+      }
+    },
+    handler(request, reply) {
+      reply(null, request.abTests);
+    }
+  });
+
+  server.register({
+    register: plugin,
+    options: {
+      tests: {
+        buttonColor: ['green'],
+        text: ['a', 'b']
+      }
+    }
+  }, (pluginErr) => {
+    t.equal(pluginErr, undefined);
+    server.start((serverErr) => {
+      t.equal(serverErr, undefined);
+      server.inject({
+        url: '/'
+      }, (res) => {
+        const payload = JSON.parse(res.payload);
+        t.equals(payload.tests.buttonColor, undefined);
+        server.stop(() => {
+          t.end();
+        });
+      });
+    });
+  });
+});
+
+tap.test('if funnels, dont include if not already there', t => {
+  const server = new Hapi.Server();
+  server.connection({
+    state: {
+      isSecure: false,
+      isHttpOnly: false,
+      isSameSite: false
+    }
+  });
+
+  server.route({
+    path: '/',
+    method: 'get',
+    config: {
+      plugins: {
+        'hapi-ab': {
+          tests: ['text'],
+          funnels: ['buttonColor']
+        }
+      }
+    },
+    handler(request, reply) {
+      reply(null, request.abTests);
+    }
+  });
+
+  server.register({
+    register: plugin,
+    options: {
+      tests: {
+        buttonColor: ['green', 'blue'],
+        text: ['a', 'b']
+      }
+    }
+  }, (pluginErr) => {
+    t.equal(pluginErr, undefined);
+    server.start((serverErr) => {
+      t.equal(serverErr, undefined);
+      server.inject({
+        url: '/',
+        headers: {
+          cookie: 'ab-session-id=123;ab-test-buttonColor=blue'
+        }
+      }, (res) => {
+        const payload = JSON.parse(res.payload);
+        t.equals(payload.tests.buttonColor, 'blue');
+        server.stop(() => {
+          t.end();
+        });
+      });
+    });
+  });
+});

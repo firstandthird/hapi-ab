@@ -26,8 +26,9 @@ exports.register = function(server, options, next) {
     if (!request.route.settings.plugins['hapi-ab'] || !request.route.settings.plugins['hapi-ab'].tests) {
       return reply.continue();
     }
-    const routeTests = request.route.settings.plugins['hapi-ab'].tests;
-    if (routeTests.length === 0) {
+    const routeTests = request.route.settings.plugins['hapi-ab'].tests || [];
+    const routeFunnels = request.route.settings.plugins['hapi-ab'].funnels || [];
+    if (routeTests.length === 0 && routeFunnels.length === 0) {
       return reply.continue();
     }
 
@@ -40,6 +41,8 @@ exports.register = function(server, options, next) {
       abTests.sessionId = uuid.v4();
       reply.state(config.sessionCookieName, abTests.sessionId, { ttl: config.cookieTTL });
     }
+
+    const getCookieKey = (t) => `${config.testCookieNamePrefix}${t}`;
 
     const invalidTests = [];
     const overrides = {};
@@ -55,7 +58,7 @@ exports.register = function(server, options, next) {
       if (!testOptions) {
         invalidTests.push(t);
       }
-      const cookieKey = `${config.testCookieNamePrefix}${t}`;
+      const cookieKey = getCookieKey(t);
       let testValue = request.state[cookieKey];
       if (overrides[t]) {
         testValue = overrides[t];
@@ -67,6 +70,16 @@ exports.register = function(server, options, next) {
       }
       abTests.tests[t] = testValue;
     });
+
+    routeFunnels.forEach(f => {
+      const cookieKey = getCookieKey(f);
+      const testValue = request.state[cookieKey];
+      if (!testValue) {
+        return;
+      }
+      abTests.tests[f] = testValue;
+    });
+
     if (invalidTests.length !== 0) {
       return reply(new Error(`Invalid Tests: ${invalidTests.join(',')}`));
     }
