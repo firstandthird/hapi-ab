@@ -1,6 +1,6 @@
 {
   "name": "hapi-ab",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "hapi plugin to handle server side ab tests",
   "main": "index.js",
   "scripts": {
