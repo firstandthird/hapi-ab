@@ -23,7 +23,7 @@ exports.register = function(server, options, next) {
   };
 
   server.ext('onPreHandler', (request, reply) => {
-    if (!request.route.settings.plugins['hapi-ab'] || !request.route.settings.plugins['hapi-ab'].tests) {
+    if (!request.route.settings.plugins['hapi-ab']) {
       return reply.continue();
     }
     const routeTests = request.route.settings.plugins['hapi-ab'].tests || [];
