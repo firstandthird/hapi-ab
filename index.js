@@ -8,7 +8,8 @@ exports.register = function(server, options, next) {
     cookieTTL: Joi.number().default(1000 * 60 * 60 * 24 * 30), //30 days
     tests: Joi.object(),
     addToRequest: Joi.boolean().default(true),
-    addToViewContext: Joi.boolean().default(false)
+    addToViewContext: Joi.boolean().default(false),
+    globalTests: Joi.array().default([])
   };
   const valid = Joi.validate(options, schema);
   if (valid.error) {
@@ -23,12 +24,13 @@ exports.register = function(server, options, next) {
   };
 
   server.ext('onPreHandler', (request, reply) => {
-    if (!request.route.settings.plugins['hapi-ab']) {
+    if (!request.route.settings.plugins['hapi-ab'] && config.globalTests.length === 0) {
       return reply.continue();
     }
-    const routeTests = request.route.settings.plugins['hapi-ab'].tests || [];
-    const routeFunnels = request.route.settings.plugins['hapi-ab'].funnels || [];
-    if (routeTests.length === 0 && routeFunnels.length === 0) {
+    const pluginConfig = request.route.settings.plugins['hapi-ab'] || {};
+    const routeTests = pluginConfig.tests || [];
+    const routeFunnels = pluginConfig.funnels || [];
+    if (config.globalTests.length === 0 && routeTests.length === 0 && routeFunnels.length === 0) {
       return reply.continue();
     }
 
@@ -53,7 +55,8 @@ exports.register = function(server, options, next) {
         overrides[key] = value;
       });
     }
-    routeTests.forEach(t => {
+
+    const checkTest = t => {
       const testOptions = config.tests[t];
       if (!testOptions) {
         invalidTests.push(t);
@@ -69,7 +72,10 @@ exports.register = function(server, options, next) {
         reply.state(cookieKey, testValue, { ttl: config.cookieTTL });
       }
       abTests.tests[t] = testValue;
-    });
+    };
+
+    config.globalTests.forEach(t => checkTest(t));
+    routeTests.forEach(t => checkTest(t));
 
     routeFunnels.forEach(f => {
       const cookieKey = getCookieKey(f);

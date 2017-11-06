@@ -181,7 +181,51 @@ tap.test('set test on request object');
 
 tap.test('randomize test value');
 
-tap.test('globalTests');
+tap.test('globalTests', t => {
+  const server = new Hapi.Server();
+  server.connection({
+    state: {
+      isSecure: false,
+      isHttpOnly: false,
+      isSameSite: false
+    }
+  });
+
+  server.route({
+    path: '/',
+    method: 'get',
+    handler(request, reply) {
+      reply(null, request.abTests);
+    }
+  });
+
+  server.register({
+    register: plugin,
+    options: {
+      tests: {
+        buttonColor: ['green', 'blue']
+      },
+      globalTests: ['buttonColor']
+    }
+  }, (pluginErr) => {
+    t.equal(pluginErr, undefined);
+    server.start((serverErr) => {
+      t.equal(serverErr, undefined);
+      server.inject({
+        url: '/'
+      }, (res) => {
+        server.stop(() => {
+          const cookies = res.headers['set-cookie'];
+          t.includes(cookies[0], 'ab-session-id=');
+          t.includes(cookies[1], 'ab-test-buttonColor=');
+          const payload = JSON.parse(res.payload);
+          t.equals(typeof payload.tests.buttonColor, 'string');
+          t.end();
+        });
+      });
+    });
+  });
+});
 
 tap.test('if funnels, dont include if not already there', t => {
   const server = new Hapi.Server();
