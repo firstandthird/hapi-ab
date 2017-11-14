@@ -6,6 +6,7 @@ exports.register = function(server, options, next) {
     testCookieNamePrefix: Joi.string().default('ab-test-'),
     sessionCookieName: Joi.string().default('ab-session-id'),
     cookieTTL: Joi.number().default(1000 * 60 * 60 * 24 * 30), //30 days
+    cookiePath: Joi.string().default('/'),
     tests: Joi.object(),
     addToRequest: Joi.boolean().default(true),
     addToViewContext: Joi.boolean().default(false),
@@ -39,7 +40,7 @@ exports.register = function(server, options, next) {
 
     if (!abTests.sessionId) {
       abTests.sessionId = uuid.v4();
-      reply.state(config.sessionCookieName, abTests.sessionId, { ttl: config.cookieTTL });
+      reply.state(config.sessionCookieName, abTests.sessionId, { ttl: config.cookieTTL, path: config.cookiePath });
     }
 
     const getCookieKey = (t) => `${config.testCookieNamePrefix}${t}`;
@@ -67,7 +68,7 @@ exports.register = function(server, options, next) {
       if (!testValue) {
         //not already part of test
         testValue = diceRoll(config.tests[t]);
-        reply.state(cookieKey, testValue, { ttl: config.cookieTTL });
+        reply.state(cookieKey, testValue, { ttl: config.cookieTTL, path: config.cookiePath });
       }
       abTests.tests[t] = testValue;
     };

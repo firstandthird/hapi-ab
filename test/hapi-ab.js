@@ -49,6 +49,8 @@ tap.test('sets the right headers and sets abTests on the request', t => {
           const cookies = res.headers['set-cookie'];
           t.includes(cookies[0], 'ab-session-id=');
           t.includes(cookies[1], 'ab-test-buttonColor=');
+          t.includes(cookies[0], 'Path=/');
+          t.includes(cookies[1], 'Path=/');
           const payload = JSON.parse(res.payload);
           t.equals(typeof payload.tests.buttonColor, 'string');
           t.end();
@@ -180,6 +182,10 @@ tap.test('same session id if set in cookie');
 tap.test('set test on request object');
 
 tap.test('randomize test value');
+
+tap.test('cookie path');
+
+tap.test('ttl');
 
 tap.test('globalTests', t => {
   const server = new Hapi.Server();
