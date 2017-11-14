@@ -4,7 +4,7 @@
   "description": "hapi plugin to handle server side ab tests",
   "main": "index.js",
   "scripts": {
-    "test": "tap test",
+    "test": "tap --cov test",
     "example": "node example/index.js"
   },
   "repository": {
