@@ -24,13 +24,11 @@ exports.register = function(server, options, next) {
   };
 
   server.ext('onPreHandler', (request, reply) => {
-    if (!request.route.settings.plugins['hapi-ab'] && config.globalTests.length === 0) {
-      return reply.continue();
-    }
-    const pluginConfig = request.route.settings.plugins['hapi-ab'] || {};
-    const routeTests = pluginConfig.tests || [];
-    const routeFunnels = pluginConfig.funnels || [];
-    if (config.globalTests.length === 0 && routeTests.length === 0 && routeFunnels.length === 0) {
+    const routeConfig = request.route.settings.plugins['hapi-ab'] || {};
+    const routeTests = routeConfig.tests || [];
+    const routeFunnels = routeConfig.funnels || [];
+    const globalTests = (routeConfig.global === false) ? [] : config.globalTests;
+    if (globalTests.length === 0 && routeTests.length === 0 && routeFunnels.length === 0) {
       return reply.continue();
     }
 
@@ -74,7 +72,7 @@ exports.register = function(server, options, next) {
       abTests.tests[t] = testValue;
     };
 
-    config.globalTests.forEach(t => checkTest(t));
+    globalTests.forEach(t => checkTest(t));
     routeTests.forEach(t => checkTest(t));
 
     routeFunnels.forEach(f => {

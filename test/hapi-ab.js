@@ -227,6 +227,115 @@ tap.test('globalTests', t => {
   });
 });
 
+tap.test('globalTests - disable', t => {
+  const server = new Hapi.Server();
+  server.connection({
+    state: {
+      isSecure: false,
+      isHttpOnly: false,
+      isSameSite: false
+    }
+  });
+
+  server.route({
+    path: '/ui/test',
+    method: 'get',
+    config: {
+      plugins: {
+        'hapi-ab': {
+          global: false
+        }
+      }
+    },
+    handler(request, reply) {
+      reply(null, { abTests: request.abTests });
+    }
+  });
+
+  server.register({
+    register: plugin,
+    options: {
+      tests: {
+        buttonColor: ['green', 'blue']
+      },
+      globalTests: ['buttonColor']
+    }
+  }, (pluginErr) => {
+    t.equal(pluginErr, undefined);
+    server.start((serverErr) => {
+      t.equal(serverErr, undefined);
+      server.inject({
+        url: '/ui/test'
+      }, (res) => {
+        server.stop(() => {
+          const cookies = res.headers['set-cookie'];
+          t.equal(cookies, undefined);
+          const payload = JSON.parse(res.payload);
+          t.deepEqual(payload, {});
+          t.end();
+        });
+      });
+    });
+  });
+});
+
+tap.test('globalTests - local enabled, global disabled', t => {
+  const server = new Hapi.Server();
+  server.connection({
+    state: {
+      isSecure: false,
+      isHttpOnly: false,
+      isSameSite: false
+    }
+  });
+
+  server.route({
+    path: '/',
+    method: 'get',
+    config: {
+      plugins: {
+        'hapi-ab': {
+          tests: ['text'],
+          global: false
+        }
+      }
+    },
+    handler(request, reply) {
+      reply(null, request.abTests);
+    }
+  });
+
+  server.register({
+    register: plugin,
+    options: {
+      tests: {
+        buttonColor: ['green', 'blue'],
+        text: ['a', 'b']
+      },
+      globalTests: ['buttonColor']
+    }
+  }, (pluginErr) => {
+    t.equal(pluginErr, undefined);
+    server.start((serverErr) => {
+      t.equal(serverErr, undefined);
+      server.inject({
+        url: '/'
+      }, (res) => {
+        server.stop(() => {
+          const cookies = res.headers['set-cookie'];
+          t.includes(cookies[0], 'ab-session-id=');
+          t.includes(cookies[1], 'ab-test-text=');
+          t.equals(cookies.length, 2);
+          const payload = JSON.parse(res.payload);
+          t.equals(typeof payload.tests.text, 'string');
+          t.equals(typeof payload.tests.buttonColor, 'undefined');
+          t.end();
+        });
+      });
+    });
+  });
+});
+
 tap.test('if funnels, dont include if not already there', t => {
   const server = new Hapi.Server();
   server.connection({
@@ -278,7 +387,7 @@ tap.test('if funnels, dont include if not already there', t => {
   });
 });
 
-tap.test('if funnels, dont include if not already there', t => {
+tap.test('if funnels, include ', t => {
   const server = new Hapi.Server();
   server.connection({
     state: {
