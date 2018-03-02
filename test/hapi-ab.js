@@ -6,9 +6,8 @@ tap.test('dont do anything if not set in route config');
 
 tap.test('skip if no tests empty array');
 
-tap.test('sets the right headers and sets abTests on the request', t => {
-  const server = new Hapi.Server();
-  server.connection({
+tap.test('sets the right headers and sets abTests on the request', async t => {
+  const server = new Hapi.Server({
     state: {
       isSecure: false,
       isHttpOnly: false,
@@ -26,43 +25,34 @@ tap.test('sets the right headers and sets abTests on the request', t => {
         }
       }
     },
-    handler(request, reply) {
-      reply(null, request.abTests);
+    handler(request, h) {
+      return request.abTests;
     }
   });
 
-  server.register({
-    register: plugin,
+  await server.register({
+    plugin,
     options: {
       tests: {
         buttonColor: ['green', 'blue']
       }
     }
-  }, (pluginErr) => {
-    t.equal(pluginErr, undefined);
-    server.start((serverErr) => {
-      t.equal(serverErr, undefined);
-      server.inject({
-        url: '/'
-      }, (res) => {
-        server.stop(() => {
-          const cookies = res.headers['set-cookie'];
-          t.includes(cookies[0], 'ab-session-id=');
-          t.includes(cookies[1], 'ab-test-buttonColor=');
-          t.includes(cookies[0], 'Path=/');
-          t.includes(cookies[1], 'Path=/');
-          const payload = JSON.parse(res.payload);
-          t.equals(typeof payload.tests.buttonColor, 'string');
-          t.end();
-        });
-      });
-    });
   });
+  await server.start();
+  const res = await server.inject({ url: '/' });
+  await server.stop();
+  const cookies = res.headers['set-cookie'];
+  t.includes(cookies[0], 'ab-session-id=');
+  t.includes(cookies[1], 'ab-test-buttonColor=');
+  t.includes(cookies[0], 'Path=/');
+  t.includes(cookies[1], 'Path=/');
+  const payload = JSON.parse(res.payload);
+  t.equals(typeof payload.tests.buttonColor, 'string');
+  t.end();
 });
 
-tap.test('keeps the same values on subsequet requests', t => {
-  const server = new Hapi.Server();
-  server.connection({
+tap.test('keeps the same values on subsequet requests', async t => {
+  const server = new Hapi.Server({
     state: {
       isSecure: false,
       isHttpOnly: false,
@@ -80,49 +70,41 @@ tap.test('keeps the same values on subsequet requests', t => {
         }
       }
     },
-    handler(request, reply) {
-      reply(null, request.abTests);
+    handler(request, h) {
+      return request.abTests;
     }
   });
 
-  server.register({
-    register: plugin,
+  await server.register({
+    plugin,
     options: {
       tests: {
         buttonColor: ['green']
       }
     }
-  }, (pluginErr) => {
-    t.equal(pluginErr, undefined);
-    server.start((serverErr) => {
-      t.equal(serverErr, undefined);
-      server.inject({
-        url: '/'
-      }, (res) => {
-        const cookies = res.headers['set-cookie'];
-        const cookieHeaders = cookies.map(c => c.match(/(?:[^\x00-\x20\(\)<>@\,;\:\\"\/\[\]\?\=\{\}\x7F]+)\s*=\s*(?:([^\x00-\x20\"\,\;\\\x7F]*))/)[0]);
-        server.inject({
-          url: '/',
-          headers: {
-            cookie: cookieHeaders.join(';')
-          }
-        }, (res2) => {
-          server.stop(() => {
-            t.equals(res2.headers['set-cookie'], undefined);
-            const payload = JSON.parse(res.payload);
-            const payload2 = JSON.parse(res2.payload);
-            t.deepEquals(payload, payload2);
-            t.end();
-          });
-        });
-      });
-    });
   });
+  await server.start();
+  const res = await server.inject({ url: '/' });
+  const cookies = res.headers['set-cookie'];
+  /* eslint-disable */
+  const cookieHeaders = cookies.map(c => c.match(/(?:[^\x00-\x20\(\)<>@\,;\:\\"\/\[\]\?\=\{\}\x7F]+)\s*=\s*(?:([^\x00-\x20\"\,\;\\\x7F]*))/)[0]);
+  /* eslint-enable */
+  const res2 = await server.inject({
+    url: '/',
+    headers: {
+      cookie: cookieHeaders.join(';')
+    }
+  });
+  await server.stop();
+  t.equals(res2.headers['set-cookie'], undefined);
+  const payload = JSON.parse(res.payload);
+  const payload2 = JSON.parse(res2.payload);
+  t.deepEquals(payload, payload2);
+  t.end();
 });
 
-tap.test('set test with query param', t => {
-  const server = new Hapi.Server();
-  server.connection({
+tap.test('set test with query param', async t => {
+  const server = new Hapi.Server({
     state: {
       isSecure: false,
       isHttpOnly: false,
@@ -140,13 +122,13 @@ tap.test('set test with query param', t => {
         }
       }
     },
-    handler(request, reply) {
-      reply(null, request.abTests);
+    handler(request, h) {
+      return request.abTests;
     }
   });
 
-  server.register({
-    register: plugin,
+  await server.register({
+    plugin,
     options: {
       tests: {
         text: ['a', 'b'],
@@ -154,23 +136,16 @@ tap.test('set test with query param', t => {
         placement: ['top', 'bottom']
       }
     }
-  }, (pluginErr) => {
-    t.equal(pluginErr, undefined);
-    server.start((serverErr) => {
-      t.equal(serverErr, undefined);
-      server.inject({
-        url: '/?abtest=buttonColor:blue,text:b'
-      }, (res) => {
-        server.stop(() => {
-          const payload = JSON.parse(res.payload);
-          t.equal(payload.tests.buttonColor, 'blue');
-          t.equal(payload.tests.text, 'b');
-          t.end();
-        });
-      });
-    });
   });
+  await server.start();
+  const res = await server.inject({ url: '/?abtest=buttonColor:blue,text:b' });
+  await server.stop();
+  const payload = JSON.parse(res.payload);
+  t.equal(payload.tests.buttonColor, 'blue');
+  t.equal(payload.tests.text, 'b');
+  t.end();
 });
+
 tap.test('error if not valid test');
 
 tap.test('set session id in cookie');
@@ -187,9 +162,8 @@ tap.test('cookie path');
 
 tap.test('ttl');
 
-tap.test('globalTests', t => {
-  const server = new Hapi.Server();
-  server.connection({
+tap.test('globalTests', async t => {
+  const server = new Hapi.Server({
     state: {
       isSecure: false,
       isHttpOnly: false,
@@ -200,42 +174,33 @@ tap.test('globalTests', t => {
   server.route({
     path: '/',
     method: 'get',
-    handler(request, reply) {
-      reply(null, request.abTests);
+    handler(request, h) {
+      return request.abTests;
     }
   });
 
-  server.register({
-    register: plugin,
+  await server.register({
+    plugin,
     options: {
       tests: {
         buttonColor: ['green', 'blue']
       },
       globalTests: ['buttonColor']
     }
-  }, (pluginErr) => {
-    t.equal(pluginErr, undefined);
-    server.start((serverErr) => {
-      t.equal(serverErr, undefined);
-      server.inject({
-        url: '/'
-      }, (res) => {
-        server.stop(() => {
-          const cookies = res.headers['set-cookie'];
-          t.includes(cookies[0], 'ab-session-id=');
-          t.includes(cookies[1], 'ab-test-buttonColor=');
-          const payload = JSON.parse(res.payload);
-          t.equals(typeof payload.tests.buttonColor, 'string');
-          t.end();
-        });
-      });
-    });
   });
+  await server.start();
+  const res = await server.inject({ url: '/' });
+  await server.stop();
+  const cookies = res.headers['set-cookie'];
+  t.includes(cookies[0], 'ab-session-id=');
+  t.includes(cookies[1], 'ab-test-buttonColor=');
+  const payload = JSON.parse(res.payload);
+  t.equals(typeof payload.tests.buttonColor, 'string');
+  t.end();
 });
 
-tap.test('globalTests - disable', t => {
-  const server = new Hapi.Server();
-  server.connection({
+tap.test('globalTests - disable', async t => {
+  const server = new Hapi.Server({
     state: {
       isSecure: false,
       isHttpOnly: false,
@@ -253,41 +218,32 @@ tap.test('globalTests - disable', t => {
         }
       }
     },
-    handler(request, reply) {
-      reply(null, { abTests: request.abTests });
+    handler(request, h) {
+      return { abTests: request.abTests };
     }
   });
 
-  server.register({
-    register: plugin,
+  await server.register({
+    plugin,
     options: {
       tests: {
         buttonColor: ['green', 'blue']
       },
       globalTests: ['buttonColor']
     }
-  }, (pluginErr) => {
-    t.equal(pluginErr, undefined);
-    server.start((serverErr) => {
-      t.equal(serverErr, undefined);
-      server.inject({
-        url: '/ui/test'
-      }, (res) => {
-        server.stop(() => {
-          const cookies = res.headers['set-cookie'];
-          t.equal(cookies, undefined);
-          const payload = JSON.parse(res.payload);
-          t.deepEqual(payload, {});
-          t.end();
-        });
-      });
-    });
   });
+  await server.start();
+  const res = await server.inject({ url: '/ui/test' });
+  await server.stop();
+  const cookies = res.headers['set-cookie'];
+  t.equal(cookies, undefined);
+  const payload = JSON.parse(res.payload);
+  t.deepEqual(payload, {});
+  t.end();
 });
 
-tap.test('globalTests - local enabled, global disabled', t => {
-  const server = new Hapi.Server();
-  server.connection({
+tap.test('globalTests - local enabled, global disabled', async t => {
+  const server = new Hapi.Server({
     state: {
       isSecure: false,
       isHttpOnly: false,
@@ -306,13 +262,13 @@ tap.test('globalTests - local enabled, global disabled', t => {
         }
       }
     },
-    handler(request, reply) {
-      reply(null, request.abTests);
+    handler(request, h) {
+      return request.abTests;
     }
   });
 
-  server.register({
-    register: plugin,
+  await server.register({
+    plugin,
     options: {
       tests: {
         buttonColor: ['green', 'blue'],
@@ -320,31 +276,22 @@ tap.test('globalTests - local enabled, global disabled', t => {
       },
       globalTests: ['buttonColor']
     }
-  }, (pluginErr) => {
-    t.equal(pluginErr, undefined);
-    server.start((serverErr) => {
-      t.equal(serverErr, undefined);
-      server.inject({
-        url: '/'
-      }, (res) => {
-        server.stop(() => {
-          const cookies = res.headers['set-cookie'];
-          t.includes(cookies[0], 'ab-session-id=');
-          t.includes(cookies[1], 'ab-test-text=');
-          t.equals(cookies.length, 2);
-          const payload = JSON.parse(res.payload);
-          t.equals(typeof payload.tests.text, 'string');
-          t.equals(typeof payload.tests.buttonColor, 'undefined');
-          t.end();
-        });
-      });
-    });
   });
+  await server.start();
+  const res = await server.inject({ url: '/' });
+  server.stop();
+  const cookies = res.headers['set-cookie'];
+  t.includes(cookies[0], 'ab-session-id=');
+  t.includes(cookies[1], 'ab-test-text=');
+  t.equals(cookies.length, 2);
+  const payload = JSON.parse(res.payload);
+  t.equals(typeof payload.tests.text, 'string');
+  t.equals(typeof payload.tests.buttonColor, 'undefined');
+  t.end();
 });
 
-tap.test('if funnels, dont include if not already there', t => {
-  const server = new Hapi.Server();
-  server.connection({
+tap.test('if funnels, dont include if not already there', async t => {
+  const server = new Hapi.Server({
     state: {
       isSecure: false,
       isHttpOnly: false,
@@ -363,39 +310,30 @@ tap.test('if funnels, dont include if not already there', t => {
         }
       }
     },
-    handler(request, reply) {
-      reply(null, request.abTests);
+    handler(request, h) {
+      return request.abTests;
     }
   });
 
-  server.register({
-    register: plugin,
+  await server.register({
+    plugin,
     options: {
       tests: {
         buttonColor: ['green'],
         text: ['a', 'b']
       }
     }
-  }, (pluginErr) => {
-    t.equal(pluginErr, undefined);
-    server.start((serverErr) => {
-      t.equal(serverErr, undefined);
-      server.inject({
-        url: '/'
-      }, (res) => {
-        const payload = JSON.parse(res.payload);
-        t.equals(payload.tests.buttonColor, undefined);
-        server.stop(() => {
-          t.end();
-        });
-      });
-    });
   });
+  await server.start();
+  const res = await server.inject({ url: '/' });
+  const payload = JSON.parse(res.payload);
+  t.equals(payload.tests.buttonColor, undefined);
+  await server.stop();
+  t.end();
 });
 
-tap.test('if funnels, include ', t => {
-  const server = new Hapi.Server();
-  server.connection({
+tap.test('if funnels, include ', async t => {
+  const server = new Hapi.Server({
     state: {
       isSecure: false,
       isHttpOnly: false,
@@ -414,35 +352,29 @@ tap.test('if funnels, include ', t => {
         }
       }
     },
-    handler(request, reply) {
-      reply(null, request.abTests);
+    handler(request, h) {
+      return request.abTests;
     }
   });
 
-  server.register({
-    register: plugin,
+  await server.register({
+    plugin,
     options: {
       tests: {
         buttonColor: ['green', 'blue'],
         text: ['a', 'b']
       }
     }
-  }, (pluginErr) => {
-    t.equal(pluginErr, undefined);
-    server.start((serverErr) => {
-      t.equal(serverErr, undefined);
-      server.inject({
-        url: '/',
-        headers: {
-          cookie: 'ab-session-id=123;ab-test-buttonColor=blue'
-        }
-      }, (res) => {
-        const payload = JSON.parse(res.payload);
-        t.equals(payload.tests.buttonColor, 'blue');
-        server.stop(() => {
-          t.end();
-        });
-      });
-    });
   });
+  await server.start();
+  const res = await server.inject({
+    url: '/',
+    headers: {
+      cookie: 'ab-session-id=123;ab-test-buttonColor=blue'
+    }
+  });
+  const payload = JSON.parse(res.payload);
+  t.equals(payload.tests.buttonColor, 'blue');
+  await server.stop();
+  t.end();
 });
