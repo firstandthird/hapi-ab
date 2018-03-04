@@ -1,7 +1,7 @@
 const Joi = require('joi');
 const uuid = require('uuid');
 
-exports.register = function(server, options, next) {
+const register = (server, options) => {
   const schema = {
     testCookieNamePrefix: Joi.string().default('ab-test-'),
     sessionCookieName: Joi.string().default('ab-session-id'),
@@ -14,7 +14,7 @@ exports.register = function(server, options, next) {
   };
   const valid = Joi.validate(options, schema);
   if (valid.error) {
-    return next(valid.error);
+    throw valid.error;
   }
   const config = valid.value;
 
@@ -24,13 +24,13 @@ exports.register = function(server, options, next) {
     return opts[rnd];
   };
 
-  server.ext('onPreHandler', (request, reply) => {
+  server.ext('onPreHandler', (request, h) => {
     const routeConfig = request.route.settings.plugins['hapi-ab'] || {};
     const routeTests = routeConfig.tests || [];
     const routeFunnels = routeConfig.funnels || [];
     const globalTests = (routeConfig.global === false) ? [] : config.globalTests;
     if (globalTests.length === 0 && routeTests.length === 0 && routeFunnels.length === 0) {
-      return reply.continue();
+      return h.continue;
     }
 
     const abTests = {
@@ -40,7 +40,7 @@ exports.register = function(server, options, next) {
 
     if (!abTests.sessionId) {
       abTests.sessionId = uuid.v4();
-      reply.state(config.sessionCookieName, abTests.sessionId, { ttl: config.cookieTTL, path: config.cookiePath });
+      h.state(config.sessionCookieName, abTests.sessionId, { ttl: config.cookieTTL, path: config.cookiePath });
     }
 
     const getCookieKey = (t) => `${config.testCookieNamePrefix}${t}`;
@@ -68,7 +68,7 @@ exports.register = function(server, options, next) {
       if (!testValue) {
         //not already part of test
         testValue = diceRoll(config.tests[t]);
-        reply.state(cookieKey, testValue, { ttl: config.cookieTTL, path: config.cookiePath });
+        h.state(cookieKey, testValue, { ttl: config.cookieTTL, path: config.cookiePath });
       }
       abTests.tests[t] = testValue;
     };
@@ -86,15 +86,15 @@ exports.register = function(server, options, next) {
     });
 
     if (invalidTests.length !== 0) {
-      return reply(new Error(`Invalid Tests: ${invalidTests.join(',')}`));
+      throw new Error(`Invalid Tests: ${invalidTests.join(',')}`);
     }
 
     request.abTests = abTests;
 
-    reply.continue();
+    return h.continue;
   });
   if (config.addToViewContext) {
-    server.ext('onPostHandler', (request, reply) => {
+    server.ext('onPostHandler', (request, h) => {
       const response = request.response;
       if (response.variety === 'view') {
         if (!response.source.context) {
@@ -102,13 +102,13 @@ exports.register = function(server, options, next) {
         }
         response.source.context.abTests = request.abTests;
       }
-      reply.continue();
+      return h.continue;
     });
   }
-
-  next();
 };
 
-exports.register.attributes = {
+exports.plugin = {
+  register,
+  once: true,
   pkg: require('./package.json')
 };
